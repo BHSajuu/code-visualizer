@@ -4,11 +4,12 @@ import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import hashlib
 
-# Load environment variables (for API key)
+
 load_dotenv()
 
-# Configure the Gemini API gemini-2.5-flash gemini-2.0-flash-001
+# Configure the Gemini API 
 try:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     # Use the stable model name
@@ -18,15 +19,12 @@ except Exception as e:
     # You might want to exit or handle this more gracefully
     exit()
 
-# Initialize our FastAPI app
+
 app = FastAPI()
 
-# --- IMPORTANT: Add CORS middleware ---
-# This allows our React frontend (running on a different port) to communicate with this backend.
 origins = [
     "http://localhost",
-    "http://localhost:5173", # Default Vite dev server port
-    # Add any other origins you might use
+    "http://localhost:5173", 
 ]
 
 app.add_middleware(
@@ -63,9 +61,9 @@ Each object in the JSON array must have these keys:
 Generate the complete JSON storyboard for the execution of the provided code with the given input. The first step (step 0) should show the initial state before any execution. Respond ONLY with the raw JSON array, without any markdown formatting.
 """
 
+api_cache = {}
 @app.get("/api/visualize")
 def get_visualization_storyboard():
-    # For our prototype, we hardcode the code and input
     bubble_sort_code = """
 def bubble_sort(arr):
     n = len(arr)
@@ -78,23 +76,33 @@ def bubble_sort(arr):
     
     input_array = [5, 1, 4, 2]
 
-    # Format the prompt with our code and input
+   # Create a unique key for this specific request
+    # This ensures if the code or input changes, we get a new result
+    request_string = f"{bubble_sort_code}{input_array}"
+    request_key = hashlib.md5(request_string.encode()).hexdigest()
+
+    # --- CHECK THE CACHE FIRST ---
+    if request_key in api_cache:
+        print("CACHE HIT: Returning saved result.")
+        return {"storyboard": api_cache[request_key]}
+
+    print("CACHE MISS: Calling Gemini API...")
+    # (The rest of your code that formats the prompt and calls the API)
     prompt = PROMPT_TEMPLATE.format(
         code=bubble_sort_code.strip(),
         input_data=f"arr = {input_array}"
     )
 
     try:
-        # Call the Gemini API
         response = model.generate_content(prompt)
-        
-        # Clean the response text. LLMs can sometimes add markdown backticks.
         cleaned_text = response.text.strip().replace("```json", "").replace("```", "")
 
-        # --- IMPORTANT: Add robust JSON parsing ---
         try:
-            # Parse the cleaned string into a JSON object
             storyboard_json = json.loads(cleaned_text)
+
+            # --- SAVE THE NEW RESULT TO THE CACHE ---
+            api_cache[request_key] = storyboard_json
+
             return {"storyboard": storyboard_json}
         except json.JSONDecodeError:
             print("Error: Failed to decode JSON from Gemini response.")

@@ -1,11 +1,10 @@
-// src/App.jsx
 
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import axios from 'axios';
 import Visualizer from './components/Visualizer';
 
-// Basic styling for our app shell
 const styles = {
+ 
   container: {
     maxWidth: '800px',
     margin: '40px auto',
@@ -72,7 +71,7 @@ function App() {
         console.error("There was an error fetching the storyboard!", error);
         setError("Failed to load data from the server. Is the backend running?");
       });
-  }, []); // The empty array ensures this runs only once on mount
+  }, []); 
 
   const handleNext = () => {
     if (currentStep < storyboard.length - 1) {
