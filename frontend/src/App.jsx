@@ -3,6 +3,17 @@ import  { useState, useEffect } from 'react';
 import axios from 'axios';
 import Visualizer from './components/Visualizer';
 
+
+// Default bubble sort code for user convenience
+const defaultCode = `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr`;
+
+
 const styles = {
  
   container: {
@@ -21,6 +32,19 @@ const styles = {
     marginBottom: '30px',
     fontSize: '2.5rem',
   },
+  inputSection: { display: 'flex', gap: '20px', marginBottom: '20px' },
+  editor: { flex: 1, display: 'flex', flexDirection: 'column' },
+  label: { marginBottom: '8px', fontWeight: 'bold', color: '#374151' },
+  textarea: { 
+    fontFamily: 'monospace', 
+    fontSize: '0.9rem',
+    padding: '10px', 
+    border: '1px solid #d1d5db', 
+    borderRadius: '8px', 
+    minHeight: '250px',
+    flexGrow: 1,
+    resize: 'vertical'
+  },
   controls: {
     marginTop: '30px',
     display: 'flex',
@@ -29,14 +53,15 @@ const styles = {
     gap: '20px',
   },
   button: {
-    padding: '10px 20px',
-    fontSize: '1rem',
+    padding: '12px 25px',
+    fontSize: '1.1rem',
     cursor: 'pointer',
     borderRadius: '8px',
     border: 'none',
-    backgroundColor: '#374151',
+    backgroundColor: '#16a34a', // A nice green color
     color: 'white',
-    transition: 'background-color 0.2s',
+    width: '100%',
+    marginTop: '20px'
   },
   buttonDisabled: {
     backgroundColor: '#4b5563',
@@ -58,20 +83,36 @@ const styles = {
 
 
 function App() {
+  const [code, setCode] = useState(defaultCode);
+  const [inputData, setInputData] = useState('arr = [5, 1, 4, 2]');
   const [storyboard, setStoryboard] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/visualize')
-      .then(response => {
-        setStoryboard(response.data.storyboard);
-      })
-      .catch(error => {
-        console.error("There was an error fetching the storyboard!", error);
-        setError("Failed to load data from the server. Is the backend running?");
-      });
-  }, []); 
+  const handleVisualize = () => {
+    setIsLoading(true);
+    setError(null);
+    setStoryboard([]); // Clear previous storyboard
+    setCurrentStep(0);
+
+    // Make a POST request with the user's code and input
+    axios.post('http://127.0.0.1:8000/api/visualize', {
+      code: code,
+      input_data: inputData
+    })
+    .then(response => {
+      setStoryboard(response.data.storyboard);
+    })
+    .catch(error => {
+      console.error("There was an error fetching the storyboard!", error);
+      const detail = error.response?.data?.detail || "Is the backend server running?";
+      setError(`Failed to load data: ${detail}`);
+    })
+    .finally(() => {
+      setIsLoading(false);
+    });
+  };
 
   const handleNext = () => {
     if (currentStep < storyboard.length - 1) {
@@ -85,13 +126,44 @@ function App() {
     }
   };
 
-  const renderContent = () => {
-    if (error) {
-      return <p style={styles.loadingText}>{error}</p>;
-    }
-    if (storyboard.length > 0) {
-      return (
-        <>
+return (
+    <div style={styles.container}>
+      <h1 style={styles.title}>DSA Code Visualizer</h1>
+
+      <div style={styles.inputSection}>
+        <div style={styles.editor}>
+          <label style={styles.label} htmlFor="codeInput">Algorithm Code (Python)</label>
+          <textarea
+            id="codeInput"
+            style={styles.textarea}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </div>
+        <div style={styles.editor}>
+          <label style={styles.label} htmlFor="dataInput">Initial Input Data</label>
+          <textarea
+            id="dataInput"
+            style={styles.textarea}
+            value={inputData}
+            onChange={(e) => setInputData(e.target.value)}
+          />
+        </div>
+      </div>
+      
+      <button 
+        onClick={handleVisualize} 
+        disabled={isLoading}
+        style={{...styles.button, ...(isLoading && styles.buttonDisabled)}}
+      >
+        {isLoading ? 'Analyzing...' : 'Visualize Execution'}
+      </button>
+
+      <div style={{marginTop: '30px'}}>
+        {error && <p style={{color: 'red', textAlign: 'center'}}>{error}</p>}
+        {isLoading && <p style={{textAlign: 'center'}}>Loading storyboard from the server...</p>}
+        {storyboard.length > 0 && !isLoading && (
+           <>
           <Visualizer frame={storyboard[currentStep]} />
           <div style={styles.controls}>
             <button 
@@ -113,18 +185,10 @@ function App() {
             </button>
           </div>
         </>
-      );
-    }
-    return <p style={styles.loadingText}>Loading storyboard from the server...</p>;
-  }
-
-  return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>DSA Code Visualizer</h1>
-      {renderContent()}
+        )}
+      </div>
     </div>
   );
 }
 
 export default App;
-
