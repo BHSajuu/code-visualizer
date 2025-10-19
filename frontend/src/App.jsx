@@ -2,6 +2,7 @@
 import  { useState, useEffect } from 'react';
 import axios from 'axios';
 import Visualizer from './components/Visualizer';
+import CodeDisplay from './components/CodeDisplay';
 
 
 // Default bubble sort code for user convenience
@@ -45,13 +46,6 @@ const styles = {
     flexGrow: 1,
     resize: 'vertical'
   },
-  controls: {
-    marginTop: '30px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '20px',
-  },
   button: {
     padding: '12px 25px',
     fontSize: '1.1rem',
@@ -78,7 +72,20 @@ const styles = {
     textAlign: 'center',
     fontSize: '1.2rem',
     color: '#9ca3af',
-  }
+  },
+  visualizationArea: {
+    flex: 1, display: 'flex', flexDirection: 'column',
+  },
+  controls: {
+    marginTop: '20px', display: 'flex', justifyContent: 'center',
+    alignItems: 'center', gap: '20px',
+  },
+  controlButton: {
+    padding: '8px 16px', fontSize: '0.9rem', cursor: 'pointer',
+    borderRadius: '6px', border: '1px solid #d1d5db',
+    backgroundColor: '#ffffff', color: '#374151',
+  },
+  controlButtonDisabled: { backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#9ca3af' },
 };
 
 
@@ -93,14 +100,10 @@ function App() {
   const handleVisualize = () => {
     setIsLoading(true);
     setError(null);
-    setStoryboard([]); // Clear previous storyboard
+    setStoryboard([]);
     setCurrentStep(0);
 
-    // Make a POST request with the user's code and input
-    axios.post('http://127.0.0.1:8000/api/visualize', {
-      code: code,
-      input_data: inputData
-    })
+    axios.post('http://127.0.0.1:8000/api/visualize', { code, input_data: inputData })
     .then(response => {
       setStoryboard(response.data.storyboard);
     })
@@ -126,65 +129,47 @@ function App() {
     }
   };
 
-return (
+  return (
     <div style={styles.container}>
       <h1 style={styles.title}>DSA Code Visualizer</h1>
 
       <div style={styles.inputSection}>
         <div style={styles.editor}>
           <label style={styles.label} htmlFor="codeInput">Algorithm Code (Python)</label>
-          <textarea
-            id="codeInput"
-            style={styles.textarea}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
+          <textarea id="codeInput" style={styles.textarea} value={code} onChange={(e) => setCode(e.target.value)} />
         </div>
         <div style={styles.editor}>
           <label style={styles.label} htmlFor="dataInput">Initial Input Data</label>
-          <textarea
-            id="dataInput"
-            style={styles.textarea}
-            value={inputData}
-            onChange={(e) => setInputData(e.target.value)}
-          />
+          <textarea id="dataInput" style={styles.textarea} value={inputData} onChange={(e) => setInputData(e.target.value)} />
         </div>
       </div>
       
-      <button 
-        onClick={handleVisualize} 
-        disabled={isLoading}
-        style={{...styles.button, ...(isLoading && styles.buttonDisabled)}}
-      >
+      <button onClick={handleVisualize} disabled={isLoading} style={{...styles.button, ...(isLoading && styles.buttonDisabled)}}>
         {isLoading ? 'Analyzing...' : 'Visualize Execution'}
       </button>
 
-      <div style={{marginTop: '30px'}}>
-        {error && <p style={{color: 'red', textAlign: 'center'}}>{error}</p>}
-        {isLoading && <p style={{textAlign: 'center'}}>Loading storyboard from the server...</p>}
+      <div style={styles.mainContent}>
+        {error && <p style={{color: 'red', textAlign: 'center', width: '100%'}}>{error}</p>}
+        {isLoading && <p style={{textAlign: 'center', width: '100%'}}>Loading storyboard from the server...</p>}
+        
         {storyboard.length > 0 && !isLoading && (
-           <>
-          <Visualizer frame={storyboard[currentStep]} />
-          <div style={styles.controls}>
-            <button 
-              onClick={handlePrev} 
-              disabled={currentStep === 0}
-              style={{...styles.button, ...(currentStep === 0 && styles.buttonDisabled)}}
-            >
-              Previous
-            </button>
-            <span style={styles.stepCounter}>
-              Step {currentStep} / {storyboard.length - 1}
-            </span>
-            <button 
-              onClick={handleNext} 
-              disabled={currentStep === storyboard.length - 1}
-              style={{...styles.button, ...(currentStep === storyboard.length - 1 && styles.buttonDisabled)}}
-            >
-              Next
-            </button>
-          </div>
-        </>
+          <>
+            <CodeDisplay code={code} highlightedLine={storyboard[currentStep]?.line_highlighted} />
+            <div style={styles.visualizationArea}>
+              <Visualizer frame={storyboard[currentStep]} />
+              <div style={styles.controls}>
+                <button onClick={handlePrev} disabled={currentStep === 0} style={{...styles.controlButton, ...(currentStep === 0 && styles.controlButtonDisabled)}}>
+                  Previous
+                </button>
+                <span style={styles.stepCounter}>
+                  Step {currentStep} / {storyboard.length - 1}
+                </span>
+                <button onClick={handleNext} disabled={currentStep === storyboard.length - 1} style={{...styles.controlButton, ...(currentStep === storyboard.length - 1 && styles.controlButtonDisabled)}}>
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
